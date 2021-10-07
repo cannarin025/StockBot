@@ -12,4 +12,4 @@ class SubscriptionData:
 
 @dataclass
 class Subscription:
-    products: Dict[str, SubscriptionData]
+    products: Dict[str, SubscriptionData]  # Dict[str(memberID), SubscriptionData]

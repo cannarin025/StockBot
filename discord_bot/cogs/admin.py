@@ -14,17 +14,18 @@ class Admin(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.react_list = ["0⃣", "1⃣", "2⃣", "3⃣", "4⃣", "5⃣", "6⃣", "7⃣", "8⃣", "9⃣", "🔟", "#⃣", "*⃣"]
-        self.categories = sorted(list(set(x for monitor in self.bot.monitors for x in monitor.product_categories)), key=lambda x: x.name)
+        self.categories = sorted(list(set(x for monitor in self.bot.monitors for x in monitor.product_categories)),
+                                 key=lambda x: x.name)
         self.category_reacts = {self.react_list[i]: category for i, category in enumerate(self.categories)}
         self.subscription_message: Optional[discord.Message] = None
-        self.subscriptions: Dict[discord.Member.id, Subscription] #= {}
+        self.subscriptions: Dict[discord.Member.id, Subscription]  # = {}
         self.save_dir = config["save_path"]
         self.save_file_name = "subscription_data.json"
 
         self.load_user_data()
 
     def serialize_user_data(self):
-        return jsonpickle.encode(self.subscriptions) #todo: save json to file
+        return jsonpickle.encode(self.subscriptions)  # todo: save json to file
 
     def save_user_data(self):
         json = self.serialize_user_data()
@@ -55,27 +56,64 @@ class Admin(commands.Cog):
         for react in self.category_reacts.keys():
             await self.subscription_message.add_reaction(react)
 
+    @commands.command(name="sublist", help="displays a user's subscriptions")
+    async def list_subscriptions(self, ctx):
+        sub_emoji = "✅"
+        nosub_emoji = "🟥"
+        sender_id = str(ctx.message.author.id)
+        embed = discord.Embed(title=f"{ctx.message.author} -- Active Subscriptions")
+        for category in self.categories:
+            category_name = category.name
+            if sender_id in self.subscriptions and category_name in self.subscriptions[sender_id].products:
+                embed.add_field(name=category_name, value=sub_emoji)
+            else:
+                embed.add_field(name=category_name, value=nosub_emoji)
+
+        await ctx.channel.send(embed=embed)
+
+    def add_sub(self, user_id: str, category_name: str, max_price: float = None):
+        if category_name in [x.name for x in self.categories]:
+            user_subscription = self.subscriptions.get(user_id)
+            if user_subscription is None:
+                self.subscriptions[user_id] = Subscription(products={
+                    category_name: SubscriptionData(max_price=max_price)
+                })
+            else:
+                user_subscription.products[category_name] = SubscriptionData(max_price=max_price)
+            self.save_user_data()
+
+    def remove_sub(self, user_id: str, category_name: str):
+        del self.subscriptions[user_id].products[category_name]
+        self.save_user_data()
+
+    def clear_subs(self, user_id: str):
+        """
+        A function to clear all of a user's subscriptions
+        """
+        del self.subscriptions[user_id]
+
+    @commands.command(name="addsub", help="subscribes a user to a product category")
+    async def add_sub_command(self, ctx, arg):
+        self.add_sub(str(ctx.message.author.id), arg, max_price=None)
+
+    @commands.command(name="rmsub", help="unsubscribes a user from a product category")
+    async def remove_sub_command(self, ctx, arg):
+        self.remove_sub(str(ctx.message.author.id), arg)
+
+    @commands.command(name="clearsubs", help="clears all of a user's subscriptions")
+    async def clear_subs_command(self, ctx):
+        self.clear_subs(str(ctx.message.author.id))
+
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
         if payload.message_id == self.subscription_message.id and self.subscription_message.author.id != payload.user_id:
-            user_subscription = self.subscriptions.get(str(payload.user_id))
             product_category = self.category_reacts[payload.emoji.name]
-            if user_subscription is None:
-                self.subscriptions[str(payload.user_id)] = Subscription(products={
-                    product_category.name: SubscriptionData(max_price=None)
-                })
-            else:
-                user_subscription.products[product_category.name] = SubscriptionData(max_price=None)
-            self.save_user_data()
-            #print(self.subscriptions)  # todo: remove testing feature
+            self.add_sub(str(payload.user_id), product_category.name, max_price=None)
 
     @commands.Cog.listener()
     async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent):
         product_category = self.category_reacts[payload.emoji.name]
-        del self.subscriptions[str(payload.user_id)].products[product_category.name]
-        self.save_user_data()
-        #print(self.subscriptions)  # todo: remove testing feature
-
+        self.remove_sub(str(payload.user_id), product_category.name)
 
 
 def setup(bot):
