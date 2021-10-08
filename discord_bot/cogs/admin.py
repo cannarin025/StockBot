@@ -104,6 +104,12 @@ class Admin(commands.Cog):
     async def clear_subs_command(self, ctx):
         self.clear_subs(str(ctx.message.author.id))
 
+    @commands.command(name="purgesubs", help="clears subscriptions of all users")
+    @commands.has_any_role(config["admin_role"])
+    async def purge_subs(self):
+        self.subscriptions = {}
+
+
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
         if payload.message_id == self.subscription_message.id and self.subscription_message.author.id != payload.user_id:
