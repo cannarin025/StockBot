@@ -106,7 +106,7 @@ class Admin(commands.Cog):
 
     @commands.command(name="purgesubs", help="clears subscriptions of all users")
     @commands.has_any_role(config["admin_role"])
-    async def purge_subs(self):
+    async def purge_subs(self, ctx):
         self.subscriptions = {}
 
 
