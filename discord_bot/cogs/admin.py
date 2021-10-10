@@ -91,6 +91,7 @@ class Admin(commands.Cog):
         A function to clear all of a user's subscriptions
         """
         del self.subscriptions[user_id]
+        self.save_user_data()
 
     @commands.command(name="addsub", help="subscribes a user to a product category")
     async def add_sub_command(self, ctx, arg):
@@ -108,6 +109,7 @@ class Admin(commands.Cog):
     @commands.has_any_role(config["admin_role"])
     async def purge_subs(self, ctx):
         self.subscriptions = {}
+        self.save_user_data()
 
 
     @commands.Cog.listener()
